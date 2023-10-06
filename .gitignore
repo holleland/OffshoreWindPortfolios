@@ -1,0 +1,8 @@
+*.png
+output/*
+*.Rhistory
+*.tex
+.Rproj.user/*
+*.Rproj
+data/NVE.rds
+data/Solbrekke.rds
