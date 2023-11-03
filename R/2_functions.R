@@ -169,7 +169,8 @@ iterative.build <- function(Twp = .58, start.locs = c(13, 19), mu, Sigma, maxWei
                        locID = locations, 
                        weights = weights,
                        total = total,
-                       powertarget = Twp)
+                       powertarget = Twp, 
+                       std = as.numeric(sqrt(weights%*% Sigma[locations,locations]%*%weights)))
   minWeights <- weights * total / (total + stepsize)
   
   while(total < maxGW){
@@ -219,7 +220,8 @@ iterative.build <- function(Twp = .58, start.locs = c(13, 19), mu, Sigma, maxWei
       locID = locations, 
       weights = newweights,
       total = total,
-      powertarget = Twp
+      powertarget = Twp, 
+      std = std[which.min(std)]
     ) %>% arrange(step, locID)
     }
     return(list(

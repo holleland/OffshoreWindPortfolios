@@ -6,3 +6,4 @@ output/*
 *.Rproj
 data/NVE.rds
 data/Solbrekke.rds
+data/WPSS/*

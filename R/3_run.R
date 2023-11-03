@@ -68,7 +68,8 @@ grid.3L.SOL <- bind_rows(
 NVE.case.A <- lapply(c(.58,.6,.62), 
                      optimize_portfolio,
                      mu = mu.NVE,
-                     Sigma = Sigma.NVE
+                     Sigma = Sigma.NVE,
+                     maxWeights = maxWeights
 ) %>% bind_rows() %>% 
   mutate(source = "NVE",
          case = "A") %>% 
@@ -77,9 +78,10 @@ NVE.case.A <- lapply(c(.58,.6,.62),
 SOL.case.A <- lapply(c(.58,.6,.62), 
                      optimize_portfolio,
                      mu = mu.SOL,
-                     Sigma = Sigma.SOL
+                     Sigma = Sigma.SOL,
+                     maxWeights = maxWeightsSOL
 ) %>% bind_rows() %>% 
-  mutate(source = "Solbrekke",
+  mutate(source = "S&S",
          case = "A")%>% 
   select(-std)
 
@@ -96,7 +98,8 @@ cl <- makeCluster(6)
 (SOL.case.B <- run.5L.optimization(grid = grid.3L.SOL,
                                          mu = mu.SOL, 
                                          Sigma = Sigma.SOL, 
-                                         source = "Solbrekke",
+                                         source = "S&S",
+                                         maxWeights = maxWeightsSOL,
                                          #minWeights = rep(0, length(mu.SOL)),
                                          #maxWeights = rep(1, length(mu.SOL)),
                                          cl = cl)%>% 
@@ -113,7 +116,8 @@ cl <- makeCluster(6)
 (SOL.case.C <- run.5L.optimization(grid = grid.5L.SOL, 
                                          mu = mu.SOL, 
                                          Sigma = Sigma.SOL, 
-                                         source = "Solbrekke", 
+                                         source = "S&S",
+                                         maxWeights = maxWeightsSOL, 
                                          cl = cl)%>% 
     mutate(case = "C"))
 stopCluster(cl)
@@ -126,70 +130,92 @@ stopCluster(cl)
 NVE.case.D.runs <- lapply(c(.6,.62), function(x)
                      iterative.build(Twp = x, 
                                      find.initial.weights = FALSE,
-                              start.locs = c(13L, 19L),
+                              start.locs = UNandSN2.NVE,
                               mu = mu.NVE,
                               stepsize = 1.5,
                               Sigma = Sigma.NVE,
                               maxWeights = maxWeights))
+NVE.sequential <- bind_rows(NVE.case.D.runs[[1]]$allsteps,
+                            NVE.case.D.runs[[2]]$allsteps) %>% 
+  mutate(source = "NVE", case = "D")
+
 NVE.case.D <- bind_rows(NVE.case.D.runs[[1]]$final,
                         NVE.case.D.runs[[2]]$final) %>% 
   mutate(source = "NVE",
          case = "D") %>% 
-  select(-step,-total)
+  select(-step,-total,-std)
 SOL.case.D.runs <-  lapply(c(.6,.62), function(x)
   iterative.build(Twp = x, 
                   find.initial.weights = FALSE,
-                  start.locs = c(1L, 10L),
+                  start.locs = UNandSN2.SOL,
                   stepsize = 1.5,
                   mu = mu.SOL,
                   Sigma = Sigma.SOL,
-                  maxWeights = rep(1,length(mu.SOL))))
+                  maxWeights = maxWeightsSOL))
+SOL.sequential <- bind_rows(SOL.case.D.runs[[1]]$allsteps,
+                            SOL.case.D.runs[[2]]$allsteps) %>% 
+  mutate(source = "S&S", case = "D")
 SOL.case.D <- bind_rows(SOL.case.D.runs[[1]]$final,
                         SOL.case.D.runs[[2]]$final) %>% 
-  mutate(source = "Solbrekke",
+  mutate(source = "S&S",
          case = "D") %>% 
-  select(-step,-total)
+  select(-step,-total, -std) 
 
 # ----- CASE E -------
-NVE.first5 <- rbind(NVE.case.D.runs[[1]]$locations[1:5],
-                    NVE.case.D.runs[[2]]$locations[1:5])
+NVE.case.E.sequential.runs <- lapply(c(.6,.62), function(x)
+  iterative.build(Twp = x, 
+                  find.initial.weights = FALSE,
+                  start.locs = UNandSN2.NVE,
+                  mu = mu.NVE,
+                  stepsize = 1.5,
+                  maxGW = 7.5,
+                  Sigma = Sigma.NVE,
+                  maxWeights = maxWeights))
 
-NVE.case.E<-
-  bind_rows(
-    optimize_portfolio(
-      Twp = .6, 
-      mu = mu.NVE[NVE.first5[1,]],
-      Sigma = Sigma.NVE[NVE.first5[1,],NVE.first5[1,]],
-      maxWeights = maxWeights[NVE.first5[1,]],  locID = NVE.first5[1,]
-),
-optimize_portfolio(
-  Twp = .62, 
-  mu = mu.NVE[NVE.first5[2,]],
-  Sigma = Sigma.NVE[NVE.first5[2,],NVE.first5[2,]],
-  maxWeights = maxWeights[NVE.first5[2,]],  locID = NVE.first5[2,]
-)) %>% 
+NVE.case.E <- lapply(NVE.case.E.sequential.runs, FUN =function(x){
+  tmp <- x$final
+  minWeights <- tmp$weights * 7.5 / 30
+  locations <- tmp$locID
+  try(optimize_portfolio(Twp = tmp$powertarget[1],
+                         mu= mu.NVE[locations],
+                         Sigma = Sigma.NVE[locations,locations],
+                         locID = locations,
+                         minWeights = minWeights,
+                         maxWeights = maxWeights[locations]), 
+      silent = TRUE)
+  }) %>% 
+  bind_rows() %>% 
+  select(-std) %>% 
   mutate(source = "NVE",
-         case = "E") %>% 
-  select(-std)
-SOL.first5 <-  rbind(SOL.case.D.runs[[1]]$locations[1:5],
-                     SOL.case.D.runs[[2]]$locations[1:5])
-SOL.case.E<-
-  bind_rows(
-    optimize_portfolio(
-      Twp = .6, 
-      mu = mu.SOL[SOL.first5[1,]],
-      Sigma = Sigma.SOL[SOL.first5[1,],SOL.first5[1,]],
-      locID = SOL.first5[1,]
-    ),
-    optimize_portfolio(
-      Twp = .62, 
-      mu = mu.SOL[SOL.first5[2,]],
-      Sigma = Sigma.SOL[SOL.first5[2,],SOL.first5[2,]],
-      locID = SOL.first5[2,]
-    )) %>% 
-  mutate(source = "Solbrekke",
-         case = "E") %>% 
-  select(-std)
+         case = "E")
+
+SOL.case.E.sequential.runs <- lapply(c(.6,.62), function(x)
+  iterative.build(Twp = x, 
+                  find.initial.weights = FALSE,
+                  start.locs = UNandSN2.SOL,
+                  mu = mu.SOL,
+                  stepsize = 1.5,
+                  maxGW = 7.5,
+                  Sigma = Sigma.SOL,
+                  maxWeights = maxWeightsSOL))
+
+SOL.case.E<- lapply(SOL.case.E.sequential.runs, FUN =function(x){
+  tmp <- x$final
+  minWeights <- tmp$weights * 7.5 / 30
+  locations <- tmp$locID
+  try(optimize_portfolio(Twp = tmp$powertarget[1],
+                         mu= mu.SOL[locations],
+                         Sigma = Sigma.SOL[locations,locations],
+                         locID = locations,
+                         minWeights = minWeights,
+                         maxWeights = maxWeightsSOL[locations]), 
+      silent = TRUE)
+}) %>% 
+  bind_rows() %>% 
+  select(-std) %>% 
+  mutate(source = "S&S",
+         case = "E")
+
 
 
 # ---------------------
@@ -254,23 +280,8 @@ all.cases %>%
 saveRDS(all.cases, 
         file = "output/portfolioweights_all_cases.rds")
 
-# -----------------
-if(source == "NVE"){
-  portfolios <- portfolios %>% rename("locID" = "name") %>%
-    mutate(name = locNames[locID])
-  portfolios <- readxl::read_excel("data/NVE_20_locations.xlsx") %>%
-    mutate(name = str_replace(name, "\u00f8",replacement = "o")) %>% 
-    select( name, lon,lat) %>% 
-    group_by(name) %>% 
-    summarize(lon = mean(lon), lat = mean(lat)) %>% 
-    right_join(portfolios , by = "name") %>% 
-    mutate(turbines = round(2000*weights))
-}else{
-  portfolios <- portfolios %>% 
-    mutate(locID = as.numeric(locID)) %>% 
-    filter(!is.na(powertarget))
-  portfolios <- readRDS("data/Solbrekke_locations.rds") %>%
-    select(locID, lon,lat) %>% 
-    right_join(portfolios , by = "locID") %>% 
-    mutate(turbines = round(2000*weights))
-}
+# case D: All steps
+saveRDS(bind_rows(
+  NVE.sequential, SOL.sequential
+),
+file = "output/caseD_allsteps.rds")
