@@ -36,9 +36,9 @@ here in agreement with the authors.
 
 ## License
 
-This project is licensed under the GNU GPLv3 License - see
-[LICENSE.md](LICENSE.md) for details. The data is licenced under [CC BY
-4.0 LEGAL CODE](https://creativecommons.org/licenses/by/4.0/legalcode).
+This project is licensed under [CC BY 4.0 LEGAL
+CODE](https://creativecommons.org/licenses/by/4.0/legalcode), same as
+the NORA3-WP data.
 
 ## References
 
