@@ -32,7 +32,7 @@ land <- rnaturalearth::ne_countries(continent = "Europe",
 locsSF <- st_as_sf(portfolios, coords = c("lon","lat"), crs= 4326)  %>% st_transform(proj)
 locsSF$lon <- st_coordinates(locsSF)[,"X"]
 locsSF$lat <- st_coordinates(locsSF)[,"Y"]
-locations <- readxl::read_excel("C:/Users/s15052/Dropbox/NHH/Prosjekter/Wind/OptimalWindFarmPortfolio/data/NVE_20_locations.xlsx") %>% 
+locations <- readxl::read_excel("data/NVE_20_locations.xlsx") %>% 
   mutate(name = str_replace(name, "\u00f8","o")) %>% st_as_sf(coords = c("lon","lat"), crs= 4326)  %>% st_transform(proj)
 locations$lon <- st_coordinates(locations)[,"X"]
 locations$lat <- st_coordinates(locations)[,"Y"]
@@ -414,4 +414,114 @@ ggplot(output, aes(y= powertarget, x = 100*sd))+
             color = "blue")
 ggsave(file = "figures/Portfolios_graph_with_efficient_frontier.png", width = 10, height = 4)
 
+# -----------------
+# ANIMATION 
+# _----------------
+library(tidyverse)
+library(sf)
+proj <-  "+proj=lcc +lat_0=66.3 +lon_0=-42 +lat_1=66.3 +lat_2=66.3 +no_defs +R=6.371e+06"
+land <- rnaturalearth::ne_countries(continent = "Europe", 
+                                    returnclass = "sf", scale = 10) %>%
+  st_transform(proj) %>% 
+  select(geometry)
 
+sequential <- readRDS("output/caseD_allsteps.rds") %>% 
+  filter(source == "NVE",
+         powertarget == .6) %>% 
+  select(-source, -case, -powertarget) %>% 
+   mutate(turbines = round(weights * total*1000/15))
+caseA <- output %>%  filter(source == "NVE",
+                            powertarget == .6,
+                            case == "A")
+locNames <- readRDS("data/NVE.rds") %>% pull(name) %>% unique() %>% 
+  as_tibble() %>% mutate(locID = as.integer(1:n())) %>% rename(name = value)
+#NVE.portfolios <- readRDS("output/portfolioweights_all_cases.rds") %>% 
+
+
+NVE.portfolios <- readxl::read_excel("data/NVE_20_locations.xlsx") %>%
+  mutate(name = str_replace(name, "\u00f8",replacement = "o")) %>%
+  left_join(locNames, by = "name") %>% 
+  group_by(locID) %>% 
+  summarize(lon = mean(lon), lat = mean(lat))  %>% 
+  right_join(
+    sequential, by = "locID") 
+
+locsSF <- st_as_sf(NVE.portfolios, coords = c("lon","lat"), crs= 4326)  %>% st_transform(proj)
+locsSF$lon <- st_coordinates(locsSF)[,"X"]
+locsSF$lat <- st_coordinates(locsSF)[,"Y"]
+locations <- readxl::read_excel("data/NVE_20_locations.xlsx") %>% 
+  mutate(name = str_replace(name, "\u00f8","o")) %>% st_as_sf(coords = c("lon","lat"), crs= 4326)  %>% st_transform(proj)
+locations$lon <- st_coordinates(locations)[,"X"]
+locations$lat <- st_coordinates(locations)[,"Y"]
+locsSF <- locsSF %>% filter(turbines >0)
+nloc <- nloc %>% 
+  filter(powertarget == .6, source == "NVE") %>% 
+  mutate(step = order(total))
+for(.step in 1:19){
+.label <-  paste0("Installed ", locsSF %>% filter(step == .step) %>% distinct(total) %>% pull(total), " GW" )
+pmap <- land %>%
+  ggplot() + 
+  geom_sf(pch = 15) +
+  geom_polygon(data=locations, fill = "green", aes(x=lon,y=lat, group = name), alpha = .2)+
+  coord_sf(expand = FALSE, xlim = range(locsSF$lon)+c(-1e5,1e5), ylim = range(locsSF$lat)+c(-1e5,1e5)) + 
+  #geom_point(data = locsSF,
+  #           aes(x=lon,y=lat, size = turbines, color = turbines))+
+  geom_text(data = locsSF %>% filter(step == .step),
+            aes(x=lon,y=lat, label = turbines), vjust=0, angle = 0, color = "red")+
+  #scale_color_discrete()+
+  #facet_grid(powertargettxt~case, switch = "x")+# 
+  # geom_text(data = filter(locsSF, `no additional constraints`>0),vjust= 1.5,
+  #            aes(x=lon,y=lat, label = name),angle=90, color = "red", size = 4)+
+  #  geom_text(data = filter(locsSF, `no additional constraints`>0),vjust= -1,
+  #            aes(x=lon,y=lat, label =  `no additional constraints`),angle=90, color = "red", size = 4)+
+  
+  #geom_text(data = locsSF %>% filter(turbines >0),aes(x=lon,y=lat, label = locID), color = "red", size = 2)+
+  theme_bw()+
+  geom_text(label = .label,
+            #angle = 90,
+            x = -Inf, y = -Inf, vjust = 1.2, hjust =-0.05, size = 9)+
+  #facet_wrap(~name, ncol = 1, strip.position = "right")+
+  #scale_color_viridis_c(name = "Number of turbines")+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        strip.background = element_rect(fill = "white", color = "transparent"),
+        strip.text.y.right = element_text(angle = 90),
+        strip.text.x = element_text(angle = 90),
+        text = element_text(size = 13),
+        plot.caption.position = "plot",
+        legend.title = element_text(angle = 90, vjust =.9, size = 18),
+        legend.text = element_text(angle = 90, hjust = 0.5),
+        plot.background = element_rect(fill = "white", color = "white"),
+        legend.background = element_rect(fill = "white", color = "white"))
+
+library(ggpubr)
+pstd <- ggplot(sequential %>% filter(step <= .step), 
+       aes(x = total, y = 100*std))+ 
+  geom_line(show.legend = FALSE)+ 
+  geom_point()+
+  geom_text(data = nloc %>% filter(step <=.step), aes(x =total, y = 100*std, label = n), 
+            vjust = -1,
+            show.legend = FALSE) +
+  #facet_wrap(~source)+ 
+  theme_bw() + 
+  theme(panel.grid.major.x= element_blank(),
+        panel.grid.minor  = element_blank(),
+        strip.background = element_rect(fill = "white", color = "transparent"),
+        strip.text = element_text(size = 13),
+        #legend.title = element_blank(),
+        legend.position = c(.96,.90),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 13),
+        legend.background = element_rect(fill = "transparent")) +
+  geom_hline(data = caseA,
+             aes(yintercept = 100*sd),
+             lty = 2,show.legend = FALSE)+
+  scale_color_discrete(name = "Target") + 
+  scale_y_continuous(limits = c(19.8,36), name = "Portfolio standard deviation (pp)")+
+  scale_x_continuous(expand = c(0,0), limits =c(0,32),name = "Installed capacity (GW)" ,
+                     breaks = seq(0,30,3))+
+  guides(color = guide_legend(override.aes = list(pch = 15, size = 5)))
+ggarrange(pmap,pstd, widths = c(1,1.3), ncol = 2, nrow = 1)
+ggsave(paste0("animation/",.step,".png"), width = 8*1.2, height =8)
+}
