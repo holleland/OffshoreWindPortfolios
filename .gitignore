@@ -8,3 +8,4 @@ data/WPSS/*
 *.pptx
 animation/*
 .RDataTmp
+*.html

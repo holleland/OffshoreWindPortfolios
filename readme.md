@@ -17,7 +17,11 @@ Norway*
 
 This github repository contains the necessary code for reproducing the
 modern portfolio analysis performed in the paper *Optimal allocation of
-30GW offshore wind power in the Norwegian Economic Zone*.
+30GW offshore wind power in the Norwegian Economic Zone*. You may also
+find the NORA3-WP dataset for the specific locations presented in the
+paper (in the data folder). Some code may not run due to details not
+published (e.g. some tables using the wind power suitability scores from
+Solbrekke and Sorteberg(2023)).
 
 ### Data
 
@@ -26,7 +30,7 @@ The full NORA3-WP dataset (Solberg and Sorteberg, 2022) is available at
 The extracted sample for the 40 locations used in the paper is published
 here in agreement with the authors.
 
-### Animation of sequential build out for the NVE regions
+### Animation of sequential build-out for the NVE regions
 
 ![](output/sequential_buildout_animation.gif)
 
@@ -46,3 +50,7 @@ the NORA3-WP data.
   offshore wind power dataset for the Baltic, North, Norwegian, and
   Barents Seas](https://www.nature.com/articles/s41597-022-01451-x).
   Scientific Data, 9(1):362, December 2022.
+- Ida Marie Solbrekke and Asgeir Sorteberg. [Norwegian offshore wind
+  power – Spatial planning using multi-criteria decision
+  analysis](https://onlinelibrary.wiley.com/doi/10.1002/we.2871). Wind
+  Energy, 2023.
