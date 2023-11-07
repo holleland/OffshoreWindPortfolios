@@ -30,9 +30,16 @@ The full NORA3-WP dataset (Solberg and Sorteberg, 2022) is available at
 The extracted sample for the 40 locations used in the paper is published
 here in agreement with the authors.
 
-### Animation of sequential build-out for the NVE regions
+### Sequential build-out for the NVE regions
 
 ![](output/sequential_buildout_animation.gif)
+
+In the animation above, we show the sequential build-out (from case D in
+the paper), for a target capacity factor of 60%. The map on the left
+show the number of turbines installed in each region, while the curve on
+the right show the decreasing standard deviation as a function of
+installed power. The dashed horizontal line corresponds to the
+corresponding case A standard deviation.
 
 ## Author’s github account
 
